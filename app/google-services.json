@@ -1,0 +1,106 @@
+{
+  "project_info": {
+    "project_number": "866681004838",
+    "project_id": "smartmed-982de",
+    "storage_bucket": "smartmed-982de.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:866681004838:android:58ee75d46098c8b17c57e7",
+        "android_client_info": {
+          "package_name": "com.medbytes.smartmed"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "866681004838-iob1q4si5g8nilbn4kf1mh762v58tdo8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.medbytes.smartmed",
+            "certificate_hash": "654b693c8ad18317ecec75b6050b8d78e82d8ce1"
+          }
+        },
+        {
+          "client_id": "866681004838-j2eong06tohmm7gqlta5a53p2dtmn1e7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.medbytes.smartmed",
+            "certificate_hash": "afae14b5a6913181577db63efa29058103687ac9"
+          }
+        },
+        {
+          "client_id": "866681004838-4crbs675hfl9lui6ej96hedh5i544429.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAxYYWHB_j8nFlHI26vBHYNXlrOYZTC7-Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "866681004838-4crbs675hfl9lui6ej96hedh5i544429.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "866681004838-on0qh0m205mi212qn7jqu7j2v41rcjac.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.smartMed"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:866681004838:android:d54add157f68fdd07c57e7",
+        "android_client_info": {
+          "package_name": "com.medbytes.smartwatch"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "866681004838-pe809797rqrrtrc17fcoabc7mt58l3eh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.medbytes.smartwatch",
+            "certificate_hash": "654b693c8ad18317ecec75b6050b8d78e82d8ce1"
+          }
+        },
+        {
+          "client_id": "866681004838-4crbs675hfl9lui6ej96hedh5i544429.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAxYYWHB_j8nFlHI26vBHYNXlrOYZTC7-Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "866681004838-4crbs675hfl9lui6ej96hedh5i544429.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "866681004838-on0qh0m205mi212qn7jqu7j2v41rcjac.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.smartMed"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
