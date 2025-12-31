@@ -1,82 +1,142 @@
 package com.medbytes.smartwatch.presentation.views
 
 import android.Manifest
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import android.os.Build
-import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.core.app.ActivityCompat
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat.getSystemService
+import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
-import com.medbytes.smartwatch.R
-import com.medbytes.smartwatch.presentation.MainActivity
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.*
+import kotlin.random.Random
+
+// --- Colors ---
+val DarkBackground = Color(0xFF1B1B29)
+val CardBackground = Color(0xFF2B2B3D)
+val TextWhite = Color(0xFFEEEEEE)
+val TextGrey = Color(0xFFAAAAAA)
+val HeartColor = Color(0xFFE54D5F)
+val TempColor = Color(0xFFF5A623)
+val StepColor = Color(0xFF4CAF50)
+val BloodPressureColor = Color(0xFF2196F3)
+val LogoutRed = Color(0xFFD32F2F) // Red color for logout
+
+val ButtonGradient = Brush.horizontalGradient(
+    colors = listOf(Color(0xFF6366F1), Color(0xFFA855F7))
+)
 
 @Composable
-fun HomeScreen(context: Context,navController: NavController) {
+fun HomeScreen(context: Context, navController: NavController) {
     val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+
+    // --- Sensor Data States ---
     var heartRate by remember { mutableStateOf<Float?>(null) }
     var temperature by remember { mutableStateOf<Float?>(null) }
+
+    // --- Dummy Data Initialization ---
+    var steps by remember {
+        mutableStateOf<Float?>(Random.nextInt(1500, 5000).toFloat())
+    }
+    var bloodPressure by remember {
+        mutableStateOf("${Random.nextInt(110, 135)}/${Random.nextInt(70, 85)}")
+    }
+
+    // --- UI States ---
     var isLoading by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
-    val user = Firebase.auth.currentUser
 
-    val heartRateSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_HEART_RATE)
-    val temperatureSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_AMBIENT_TEMPERATURE)
+    // Check permissions
+    var hasPermissions by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.BODY_SENSORS) == PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED
+        )
+    }
 
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val bodySensorsGranted = permissions[Manifest.permission.BODY_SENSORS] ?: false
+        val activityGranted = permissions[Manifest.permission.ACTIVITY_RECOGNITION] ?: false
+
+        if (bodySensorsGranted && activityGranted) {
+            hasPermissions = true
+        } else {
+            Toast.makeText(context, "Permissions denied. Using dummy data.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (!hasPermissions) {
+            permissionLauncher.launch(
+                arrayOf(Manifest.permission.BODY_SENSORS, Manifest.permission.ACTIVITY_RECOGNITION)
+            )
+        }
+    }
+
+    // --- Sensor Listener ---
     val sensorEventListener = rememberUpdatedState(
         object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent?) {
                 if (event == null) return
+                val value = event.values[0]
+
                 when (event.sensor.type) {
-                    Sensor.TYPE_HEART_RATE -> heartRate = event.values[0]
-                    Sensor.TYPE_AMBIENT_TEMPERATURE -> temperature = event.values[0]
+                    Sensor.TYPE_HEART_RATE -> {
+                        if (value > 0) heartRate = value
+                    }
+                    Sensor.TYPE_AMBIENT_TEMPERATURE -> {
+                        temperature = value
+                    }
+                    Sensor.TYPE_STEP_COUNTER -> {
+                        steps = value
+                    }
                 }
             }
-
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
         }
     )
 
-    DisposableEffect(Unit) {
-        heartRateSensor?.also {
-            sensorManager.registerListener(sensorEventListener.value, it, SensorManager.SENSOR_DELAY_NORMAL)
+    // Register Sensors
+    DisposableEffect(hasPermissions) {
+        if (hasPermissions) {
+            val hrSensor = sensorManager.getDefaultSensor(Sensor.TYPE_HEART_RATE)
+            val tempSensor = sensorManager.getDefaultSensor(Sensor.TYPE_AMBIENT_TEMPERATURE)
+            val stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+
+            hrSensor?.let { sensorManager.registerListener(sensorEventListener.value, it, SensorManager.SENSOR_DELAY_UI) }
+            tempSensor?.let { sensorManager.registerListener(sensorEventListener.value, tempSensor, SensorManager.SENSOR_DELAY_UI) }
+            stepSensor?.let { sensorManager.registerListener(sensorEventListener.value, stepSensor, SensorManager.SENSOR_DELAY_UI) }
         }
-        temperatureSensor?.also {
-            sensorManager.registerListener(sensorEventListener.value, it, SensorManager.SENSOR_DELAY_NORMAL)
-        }
+
         onDispose {
             sensorManager.unregisterListener(sensorEventListener.value)
         }
@@ -85,219 +145,219 @@ fun HomeScreen(context: Context,navController: NavController) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Red),
-        contentAlignment = Alignment.Center
+            .background(DarkBackground)
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Top
-        ) {
-            // Top menu icon
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                IconButton(onClick = { showMenu = !showMenu }) {
-                    Icon(imageVector = Icons.Default.MoreVert, contentDescription = "Menu")
+        Column(modifier = Modifier.fillMaxSize()) {
+
+            // Header (Uncommented slightly to show status if needed)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, bottom = 4.dp)
+            ) {
+//                Icon(Icons.Default.c, contentDescription = "BT", tint = TextGrey, modifier = Modifier.size(14.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("CONNECTED", color = TextGrey, fontSize = 10.sp, letterSpacing = 1.sp)
+            }
+
+            // Grid
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 40.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                // Heart Rate
+                item {
+                    CompactSensorCard(
+                        value = heartRate?.toInt()?.toString() ?: "--",
+                        unit = "BPM",
+                        icon = Icons.Default.Favorite,
+                        iconColor = HeartColor
+                    )
                 }
 
+                // Temperature
+                item {
+                    CompactSensorCard(
+                        value = if (temperature != null) String.format("%.1f", temperature) else "--",
+                        unit = "°C",
+                        icon = Icons.Default.DeviceThermostat,
+                        iconColor = TempColor
+                    )
+                }
+
+                // Steps
+                item {
+                    CompactSensorCard(
+                        value = steps?.toInt()?.toString() ?: "0",
+                        unit = "Steps",
+                        icon = Icons.Default.DirectionsWalk,
+                        iconColor = StepColor
+                    )
+                }
+
+                // Blood Pressure
+                item {
+                    CompactSensorCard(
+                        value = bloodPressure,
+                        unit = "mmHg",
+                        icon = Icons.Default.WaterDrop,
+                        iconColor = BloodPressureColor
+                    )
+                }
+
+                // --- Upload Button ---
+                item(span = { GridItemSpan(2) }) {
+                    if (isLoading) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(10.dp)) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                        }
+                    } else {
+                        Button(
+                            onClick = {
+                                isLoading = true
+                                // Refresh Dummy Data
+                                bloodPressure = "${Random.nextInt(110, 135)}/${Random.nextInt(70, 85)}"
+                                val currentSteps = steps ?: 2000f
+                                steps = currentSteps + Random.nextInt(10, 100).toFloat()
+
+                                uploadDataToFirebase(heartRate?.toInt(), temperature, steps?.toInt(), bloodPressure, context) {
+                                    isLoading = false
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .padding(top = 8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                            contentPadding = PaddingValues()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(ButtonGradient, shape = RoundedCornerShape(24.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.CloudUpload, contentDescription = null, tint = Color.White)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Upload Data", color = Color.White, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // --- NEW LOGOUT BUTTON (Bottom) ---
+                item(span = { GridItemSpan(2) }) {
+                    Button(
+                        onClick = {
+                            Firebase.auth.signOut()
+                            Toast.makeText(context, "Logged out", Toast.LENGTH_SHORT).show()
+                            navController.navigate("login") {
+                                popUpTo("home") { inclusive = true }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .padding(top = 8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = LogoutRed),
+                        shape = RoundedCornerShape(24.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.ExitToApp, contentDescription = null, tint = Color.White)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Logout", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
+        // Top Menu (Still kept as backup, but Logout button is now in grid)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 4.dp, end = 4.dp),
+            contentAlignment = Alignment.TopEnd
+        ) {
+            Box {
+                IconButton(onClick = { showMenu = !showMenu }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "Menu", tint = TextGrey)
+                }
                 DropdownMenu(
                     expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
+                    onDismissRequest = { showMenu = false },
+                    modifier = Modifier.background(CardBackground)
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Profile: ${user?.email ?: "No email available"}") },
-                        onClick = {
-                            showMenu = false
-                            // Navigate to Profile if needed
-                        }
-                    )
-
-                    DropdownMenuItem(
-                        text = { Text("Logout") },
+                        text = { Text("Logout", color = Color.Red) },
                         onClick = {
                             showMenu = false
                             Firebase.auth.signOut()
                             Toast.makeText(context, "Logged out", Toast.LENGTH_SHORT).show()
-                            navController.navigate("login") {
-                                // Clear the back stack and prevent going back to the home screen
-                                popUpTo("home") { inclusive = true }
-                            }
-
-                            // Handle logout (e.g., navigate to login screen)
+                            navController.navigate("login") { popUpTo("home") { inclusive = true } }
                         }
-
                     )
                 }
             }
-
-            if (isLoading) {
-                CircularProgressIndicator(color = Color.Black)
-                Text("Uploading...", color = Color.Black, modifier = Modifier.padding(top = 8.dp))
-            } else {
-                Text("Heart Rate: ${heartRate?.toInt() ?: "78"}", color = Color.Black)
-                Text(
-                    "Temperature: ${temperature?.toInt() ?: "37"}",
-                    modifier = Modifier.padding(top = 8.dp),
-                    color = Color.Black
-                )
-
-                Button(
-                    onClick = {
-                        isLoading = true
-                            isLoading = false
-                        uploadDataToFirebase(heartRate?.toInt(), temperature, context) {
-                        }
-//                        uploadDummyData(context)
-                        isLoading = false
-
-                    },
-                    modifier = Modifier.padding(top = 16.dp)
-                )
-                {
-                    Text("Upload Health Data")
-                }
-            }
         }
     }
+}
 
-    // Create notification
-    fun sendNotification(context: Context, title: String, messageBody: String) {
-        val notificationManager = NotificationManagerCompat.from(context)
-        val channelId = "default_channel"
-
-        // Create notification
-        val intent = Intent(context, MainActivity::class.java)
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            0,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val notificationBuilder = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(title)
-            .setContentText(messageBody)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "Channel Title",
-                NotificationManager.IMPORTANCE_DEFAULT
-            )
-            notificationManager.createNotificationChannel(channel)
-        }
-
-        if (ActivityCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) != PackageManager.PERMISSION_GRANTED
+// Compact Card
+@Composable
+fun CompactSensorCard(
+    value: String,
+    unit: String,
+    icon: ImageVector,
+    iconColor: Color
+) {
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = CardBackground),
+        modifier = Modifier
+            .aspectRatio(1.1f)
+            .fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Toast.makeText(context, "Notification permission not granted", Toast.LENGTH_SHORT).show()
-            Log.e("Notification", "Permission not granted")
-            return
-        }
-
-        try {
-            notificationManager.notify(0, notificationBuilder.build())
-            Toast.makeText(context, "Notification sent successfully", Toast.LENGTH_SHORT).show()
-            Log.d("Notification", "Notification sent successfully")
-        } catch (e: Exception) {
-            Toast.makeText(context, "Error sending notification", Toast.LENGTH_SHORT).show()
-            Log.e("Notification", "Error sending notification", e)
-        }
-    }
-
-    fun sendNotificationToDevice(fcmToken: String, title: String, message: String) {
-        val url = URL("https://fcm.googleapis.com/fcm/send")
-        val connection = url.openConnection() as HttpURLConnection
-
-        connection.doOutput = true
-        connection.requestMethod = "POST"
-        connection.setRequestProperty("Authorization", "key=<YOUR_SERVER_KEY>")
-        connection.setRequestProperty("Content-Type", "application/json")
-
-        val payload = """
-        {
-           "to": "$fcmToken",
-           "notification": {
-             "title": "$title",
-             "body": "$message"
-           }
-        }
-    """.trimIndent()
-
-        val outputStream = connection.outputStream
-        outputStream.write(payload.toByteArray())
-        outputStream.flush()
-        outputStream.close()
-
-        val responseCode = connection.responseCode
-        Log.d("FCM", "Response Code: $responseCode")
-
-        if (responseCode == HttpURLConnection.HTTP_OK) {
-            // Log success
-            Log.d("FCM", "Notification sent successfully")
-        } else {
-            // Log failure
-            Log.d("FCM", "Failed to send notification")
-        }
-    }
-    // Function to send notification asynchronously
-    fun sendNotificationAsync(context: Context, token: String, title: String, message: String) {
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                // Call the function to send notification on a background thread
-                sendNotificationToDevice(token, title, message)
-
-                // Once successful, you can switch back to the Main thread to show a success message
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Notification sent successfully", Toast.LENGTH_LONG).show()
-                }
-            } catch (e: Exception) {
-                // Log the error on a background thread
-                Log.e("NotificationError", "Failed to send notification: ${e.message}", e)
-
-                // Switch back to the Main thread to show a failure message
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Failed to send notification: ${e.message}", Toast.LENGTH_LONG).show()
-                }
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(iconColor.copy(alpha = 0.2f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(18.dp)
+                )
             }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(text = value, color = TextWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(text = unit, color = TextGrey, fontSize = 10.sp)
         }
     }
-
-    // Sample button to trigger the notification
-//    Button(
-//        onClick = {
-//            try {
-////                sendNotificationToDevice("fpGph4O6Q3WqZEmVK3l7-7:APA91bEi7cc4Uj7c7A7NohfoQ9Zm1WlDWAzxf5r4QMqWqXdaRB3OfsgR6kzubcSe1QF5ahnhlobEkA34QT0_JlD7ckGbFdtb9SP6YZIYGFuD9TQwF8JDxJYvpJpKGgOav7FB5rfRoMQT", "Test Title", "This is a test notification.")
-//                sendNotificationAsync(
-//                    context,
-//                    "fpGph4O6Q3WqZEmVK3l7-7:APA91bEi7cc4Uj7c7A7NohfoQ9Zm1WlDWAzxf5r4QMqWqXdaRB3OfsgR6kzubcSe1QF5ahnhlobEkA34QT0_JlD7ckGbFdtb9SP6YZIYGFuD9TQwF8JDxJYvpJpKGgOav7FB5rfRoMQT",
-//                    "Test Title",
-//                    "This is a test notification."
-//                )
-//
-//            } catch (e: Exception) {
-//                // Log the error for debugging
-//                Log.e("NotificationError", "Failed to send notification: ${e.message}", e)
-//
-//                // Optionally, show a toast to the user indicating the failure
-//                Toast.makeText(context, "Failed to send notification: ${e.message}", Toast.LENGTH_LONG).show()
-//            }
-////            sendNotification(context, "Test Title", "This is a test notification.")
-//        }
-//    ) {
-//        Text("Test Notification")
-//    }
-
 }
 
 private fun uploadDataToFirebase(
     heartRate: Int?,
     temperature: Float?,
+    steps: Int?,
+    bloodPressure: String,
     context: Context,
     onComplete: () -> Unit
 ) {
@@ -307,9 +367,10 @@ private fun uploadDataToFirebase(
         val db = Firebase.firestore
         val recordId = UUID.randomUUID().toString()
         val data = hashMapOf(
-            "blood_pressure" to "120/80",
-            "heart_rate" to heartRate,
-            "temperature" to temperature,
+            "heart_rate" to (heartRate ?: 0),
+            "temperature" to (temperature ?: 0.0f),
+            "steps" to (steps ?: 0),
+            "blood_pressure" to bloodPressure,
             "timestamp" to System.currentTimeMillis()
         )
 
@@ -319,61 +380,15 @@ private fun uploadDataToFirebase(
             .document(recordId)
             .set(data)
             .addOnSuccessListener {
-                Toast.makeText(context, "Data uploaded successfully", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Data uploaded", Toast.LENGTH_SHORT).show()
                 onComplete()
             }
             .addOnFailureListener { e ->
-                Toast.makeText(context, "Error uploading data: $e", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
                 onComplete()
             }
     } else {
-        Toast.makeText(context, "User not authenticated", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "Not logged in", Toast.LENGTH_SHORT).show()
         onComplete()
     }
 }
-
-
-private fun uploadDummyData(context: Context) {
-    val user = Firebase.auth.currentUser
-    if (user != null) {
-        val userId = user.uid
-        val db = Firebase.firestore
-        val currentTime = System.currentTimeMillis()
-        val intervalInMillis = 12 * 60 * 1000 // 12 minutes in milliseconds
-
-        // Generate dummy data
-        for (i in 0 until 50) { // 5 entries per hour * 10 hours = 50 entries
-            val timestamp = currentTime - (i * intervalInMillis)
-            val heartRate = (60..100).random() // Random heart rate between 60 and 100
-            val temperature = String.format("%.2f", (20..30).random().toDouble()) // Random temperature with 2 decimal places
-
-            // Generate random blood pressure
-            val systolic = (110..140).random() // Random systolic pressure
-            val diastolic = (70..90).random() // Random diastolic pressure
-            val bloodPressure = "$systolic/$diastolic"
-
-            val recordId = UUID.randomUUID().toString()
-            val data = hashMapOf(
-                "heart_rate" to heartRate,
-                "temperature" to temperature.toDouble(), // Ensure temperature is a double
-                "blood_pressure" to bloodPressure,
-                "timestamp" to timestamp
-            )
-
-            db.collection("users")
-                .document(userId)
-                .collection("smartwatch")
-                .document(recordId)
-                .set(data)
-                .addOnSuccessListener {
-                    Toast.makeText(context, "Dummy data uploaded successfully", Toast.LENGTH_SHORT).show()
-                }
-                .addOnFailureListener { e ->
-                    Toast.makeText(context, "Error uploading dummy data: $e", Toast.LENGTH_SHORT).show()
-                }
-        }
-    } else {
-        Toast.makeText(context, "User not authenticated", Toast.LENGTH_SHORT).show()
-    }
-}
-

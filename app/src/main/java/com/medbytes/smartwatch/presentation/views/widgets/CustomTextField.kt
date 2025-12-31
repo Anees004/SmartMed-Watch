@@ -22,69 +22,95 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.wear.compose.material.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import com.medbytes.smartwatch.R
-
 @Composable
 fun CustomTextField(
     value: String,
     onValueChange: (String) -> Unit,
-    label: String,
-    fontSize: Int,
-    boxHeight: Int,
-    labelHeight: Int,
-    isPassword: Boolean = false
+    hint: String,
+    isPassword: Boolean = false,
+    modifier: Modifier = Modifier
 ) {
-    var focused by remember { mutableStateOf(false) }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
+    Box(
+        modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = 16.dp)
-            .height(boxHeight.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.Start
+            .height(44.dp)
+            .background(
+                color = Color(0xFF1C1C1C),
+                shape = RoundedCornerShape(50)
+            )
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = label,
-            style = TextStyle(fontSize = 12.sp, color = Color.White),
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, Color.White, shape = RoundedCornerShape(16.dp))
-                .padding(start = 8.dp, end = if(!isPassword) 8.dp else 2.dp)
-                .height((boxHeight - labelHeight).dp)
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically
         ) {
+
+            // Leading Icon
+            Icon(
+                imageVector = if (isPassword) Icons.Default.Lock else Icons.Default.Email,
+                contentDescription = null,
+                tint = Color.Gray,
+                modifier = Modifier.size(18.dp)
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                textStyle = TextStyle(fontSize = fontSize.sp, color = Color.White),
                 singleLine = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onFocusChanged { focusState ->
-                        focused = focusState.isFocused
-                    }
-                    .background(Color.Transparent).align(Alignment.Center),
+                textStyle = TextStyle(
+                    color = Color.White,
+                    fontSize = 12.sp
+                ),
                 keyboardOptions = KeyboardOptions(
-                    keyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Text,
+                    keyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Email,
                     imeAction = ImeAction.Done
                 ),
-                visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation() else VisualTransformation.None
+                visualTransformation =
+                    if (isPassword && !passwordVisible)
+                        PasswordVisualTransformation()
+                    else
+                        VisualTransformation.None,
+                modifier = Modifier
+                    .weight(1f),
+                decorationBox = { innerTextField ->
+                    if (value.isEmpty()) {
+                        Text(
+                            text = hint,
+                            color = Color.Gray,
+                            fontSize = 12.sp
+                        )
+                    }
+                    innerTextField()
+                }
             )
+
+            // Password toggle
             if (isPassword) {
                 IconButton(
                     onClick = { passwordVisible = !passwordVisible },
-                    modifier = Modifier.align(Alignment.CenterEnd)
+                    modifier = Modifier.size(24.dp)
                 ) {
                     Icon(
-                        painter = painterResource(id = if (passwordVisible) R.drawable.hide else R.drawable.show),
-                        contentDescription = if (passwordVisible) "Hide password" else "Show password",
-                        tint = Color.White
+                        imageVector =
+                            if (passwordVisible)
+                                Icons.Default.VisibilityOff
+                            else
+                                Icons.Default.Visibility,
+                        contentDescription = null,
+                        tint = Color.Gray,
+                        modifier = Modifier.size(18.dp)
                     )
-
                 }
             }
         }

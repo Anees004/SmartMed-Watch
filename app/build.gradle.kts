@@ -65,6 +65,7 @@ dependencies {
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation ("androidx.work:work-runtime-ktx:2.8.0")
     implementation (platform("com.google.firebase:firebase-bom:32.0.0"))
+    implementation("androidx.compose.material:material-icons-extended-android:1.6.8")
 
     implementation ("com.google.firebase:firebase-messaging-ktx:23.0.0")
 
