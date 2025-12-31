@@ -82,18 +82,18 @@ fun LoginScreen(authViewModel: AuthViewModel, navController: NavController) {
                     .fillMaxWidth()
                     .padding(top = 8.dp)
             ) {
-                IconButton(onClick = { /* Add Google Sign-In logic here */ }) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.google_icn),
-                        contentDescription = "Google Sign-In"
-                    )
-                }
-                IconButton(onClick = { /* Add Facebook Sign-In logic here */ }) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.facebook_icn),
-                        contentDescription = "Facebook Sign-In"
-                    )
-                }
+//                IconButton(onClick = { /* Add Google Sign-In logic here */ }) {
+//                    Icon(
+//                        painter = painterResource(id = R.drawable.google_icn),
+//                        contentDescription = "Google Sign-In"
+//                    )
+//                }
+//                IconButton(onClick = { /* Add Facebook Sign-In logic here */ }) {
+//                    Icon(
+//                        painter = painterResource(id = R.drawable.facebook_icn),
+//                        contentDescription = "Facebook Sign-In"
+//                    )
+//                }
             }
         }
     }
